@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secret Messages - Farcaster Mini App</title>
+
+    <!-- Farcaster Mini App Embed Metadata -->
+    <meta name="fc:miniapp" content='{
+      "version":"next",
+      "imageUrl":"https://your-domain.com/og-image.png",
+      "button":{
+        "title":"Create Your Link",
+        "action":{
+          "type":"launch_miniapp",
+          "name":"Secret Messages",
+          "url":"https://your-domain.com",
+          "splashImageUrl":"https://your-domain.com/splash.png",
+          "splashBackgroundColor":"#7c3aed"
+        }
+      }
+    }' />
+
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Secret Messages - Anonymous Message Platform" />
+    <meta property="og:description" content="Create your unique link and receive 100% anonymous messages from friends, co-workers, and fans!" />
+    <meta property="og:image" content="https://your-domain.com/og-image.png" />
+    <meta property="og:type" content="website" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Secret Messages" />
+    <meta name="twitter:description" content="Receive anonymous messages from your friends!" />
+    <meta name="twitter:image" content="https://your-domain.com/og-image.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

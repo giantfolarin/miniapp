@@ -1,0 +1,327 @@
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useAccount, useConnect, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
+import { parseEther } from 'viem'
+import { supabase } from '../lib/supabase'
+import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../lib/wagmi'
+
+export default function MessagePage() {
+  const params = useParams()
+  const navigate = useNavigate()
+  const uniqueId = params.uniqueId
+  const [user, setUser] = useState(null)
+  const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [waitingForWallet, setWaitingForWallet] = useState(false)
+
+  const { address, isConnected } = useAccount()
+  const { connect, connectors } = useConnect()
+  const { writeContract, data: hash, error: writeError, isPending: isWriting } = useWriteContract()
+  const { isLoading: isConfirming, isSuccess: isConfirmed, isError: txError } = useWaitForTransactionReceipt({
+    hash,
+    confirmations: 0, // Immediate detection (no confirmations needed)
+    pollingInterval: 500, // Poll every 500ms for faster detection
+  })
+
+  // Read minBurnAmount from contract
+  const { data: minBurnAmount } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CONTRACT_ABI,
+    functionName: 'minBurnAmount',
+  })
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('unique_id', uniqueId)
+        .single()
+
+      if (error || !data) {
+        navigate('/')
+        return
+      }
+
+      setUser(data)
+      setLoading(false)
+    }
+
+    fetchUser()
+  }, [uniqueId, navigate])
+
+  // Auto-send after wallet connects
+  useEffect(() => {
+    if (isConnected && waitingForWallet && address && message.trim()) {
+      setWaitingForWallet(false)
+      sendMessage()
+    }
+  }, [isConnected, waitingForWallet, address])
+
+  // Debug logging for transaction states
+  useEffect(() => {
+    if (hash) {
+      console.log('Transaction hash received:', hash)
+      console.log('isConfirming:', isConfirming)
+      console.log('isConfirmed:', isConfirmed)
+      console.log('txError:', txError)
+    }
+  }, [hash, isConfirming, isConfirmed, txError])
+
+  // Auto-confirm after successful transaction
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      console.log('✅ Transaction confirmed! Hash:', hash)
+      saveMessageToDatabase(hash)
+    }
+  }, [isConfirmed, hash])
+
+  const saveMessageToDatabase = async (txHash) => {
+    try {
+      console.log('Saving message to database with data:', {
+        user_id: user.id,
+        message: message.trim(),
+        tx_hash: txHash,
+        sender_address: address
+      })
+
+      const { data, error: dbError } = await supabase
+        .from('messages')
+        .insert([{
+          user_id: user.id,
+          message: message.trim(),
+          tx_hash: txHash,
+          sender_address: address
+        }])
+        .select()
+
+      if (dbError) {
+        console.error('Database error:', dbError)
+        alert(`Failed to save message: ${dbError.message}`)
+        setSubmitting(false)
+        return
+      }
+
+      console.log('✅ Message saved successfully:', data)
+      setSubmitted(true)
+      setMessage('')
+      setSubmitting(false)
+    } catch (err) {
+      console.error('Error saving to database:', err)
+      alert(`Failed to save message: ${err.message}`)
+      setSubmitting(false)
+    }
+  }
+
+  const sendMessage = () => {
+    setSubmitting(true)
+
+    try {
+      // Write message to blockchain
+      const burnAmount = minBurnAmount || parseEther('0.0001') // Default to 0.0001 ETH if not set
+
+      console.log('Sending confession onchain with burn amount:', burnAmount)
+
+      writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI,
+        functionName: 'confess',
+        args: [message.trim()],
+        value: burnAmount,
+      })
+
+    } catch (err) {
+      console.error('Error sending message:', err)
+      alert(`Failed to send message: ${err.message || 'Please try again.'}`)
+      setSubmitting(false)
+    }
+  }
+
+  const handleConnectWallet = () => {
+    if (!connectors || connectors.length === 0) {
+      alert('No wallet connectors available. Please install MetaMask or Rabby.')
+      return
+    }
+
+    setWaitingForWallet(true)
+    const connector = connectors[0]
+    console.log('Connecting with connector:', connector.name)
+    connect({ connector })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    if (!message.trim()) return
+
+    if (!isConnected) {
+      handleConnectWallet()
+      return
+    }
+
+    sendMessage()
+  }
+
+  // Handle transaction errors
+  useEffect(() => {
+    if (txError) {
+      console.error('Transaction confirmation error:', txError)
+      alert('Transaction failed to confirm. Please try again.')
+      setSubmitting(false)
+    }
+  }, [txError])
+
+  // Handle write errors
+  useEffect(() => {
+    if (writeError) {
+      console.error('Transaction error:', writeError)
+      alert(`Transaction failed: ${writeError.message}`)
+      setSubmitting(false)
+      setWaitingForWallet(false)
+    }
+  }, [writeError])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    )
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-3">
+        <div className="w-full max-w-md">
+          <div className="relative">
+            <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 z-10">
+              <div className="bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 px-8 py-3 rounded-full shadow-2xl">
+                <h1 className="text-2xl font-bold text-white whitespace-nowrap">Message Board</h1>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500 rounded-3xl p-1 mt-6">
+              <div className="bg-gradient-to-br from-blue-900 to-purple-900 rounded-3xl p-6 pt-12 text-center">
+                <div className="text-6xl mb-4">✅</div>
+                <h2 className="text-2xl font-bold text-white mb-3">Submitted Successfully!</h2>
+                <p className="text-white/80 mb-6">Your thoughts have been delivered anonymously to {user?.name}.</p>
+
+                <button
+                  onClick={() => setSubmitted(false)}
+                  className="glow-button py-3 px-8 rounded-xl text-white font-semibold"
+                >
+                  Drop Another Thought
+                </button>
+
+                <button
+                  onClick={() => navigate('/')}
+                  className="block w-full text-white hover:text-purple-200 text-center transition-colors text-sm mt-4"
+                >
+                  Get your own link →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-3">
+      <div className="w-full max-w-md">
+        <div className="relative">
+          <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 px-8 py-3 rounded-full shadow-2xl">
+              <h1 className="text-2xl font-bold text-white whitespace-nowrap">Message Board</h1>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500 rounded-3xl p-1 mt-6">
+            <div className="bg-gradient-to-br from-blue-900 to-purple-900 rounded-3xl p-6 pt-16">
+              <div className="space-y-3 mb-6 text-white text-sm">
+                <p>• Share whatever you have in mind with <span className="font-semibold">{user?.name}</span> without revealing yourself.</p>
+                <p>• Drop a confession, compliment, or question, your identity stays completely hidden.</p>
+                <p>• <span className="font-semibold">{user?.name}</span> will never know who message.</p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="relative">
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Enter Your Thought"
+                    className="w-full px-4 py-3 bg-white text-gray-700 placeholder-gray-400 rounded-xl
+                             focus:outline-none focus:ring-4 focus:ring-purple-400/50 transition-all duration-300
+                             min-h-[120px] resize-none"
+                    maxLength={1000}
+                    disabled={submitting}
+                  />
+                  <div className="absolute bottom-2 right-2 text-xs text-gray-400">
+                    {message.length}/1000
+                  </div>
+                </div>
+
+                {!isConnected && (
+                  <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-3 text-yellow-200 text-center text-sm mb-4">
+                    ⚠️ Link your wallet to submit thoughts securely onchain
+                  </div>
+                )}
+
+                {isConfirming && hash && (
+                  <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-3 text-blue-200 text-center text-sm mb-4">
+                    ⏳ Waiting for transaction confirmation...
+                    <div className="text-xs mt-1 opacity-75">
+                      Tx: {hash.slice(0, 10)}...{hash.slice(-8)}
+                    </div>
+                  </div>
+                )}
+
+                {isConfirmed && (
+                  <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-green-200 text-center text-sm mb-4">
+                    ✅ Transaction confirmed! Saving...
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={!message.trim() || (isConnected && (submitting || isWriting || isConfirming))}
+                  className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600
+                           text-white font-bold py-3 px-6 rounded-xl text-lg
+                           disabled:opacity-50 disabled:cursor-not-allowed
+                           transform hover:scale-105 transition-all duration-300 shadow-xl"
+                >
+                  {!isConnected ? 'Connect Wallet to Submit' :
+                   isWriting ? 'Awaiting Approval...' :
+                   isConfirming ? 'Recording Onchain...' :
+                   submitting ? 'Finalizing...' :
+                   'Submit Anonymously'}
+                </button>
+
+                {minBurnAmount && (
+                  <p className="text-white/60 text-xs text-center mt-2">
+                    ⚡ Burn: {(Number(minBurnAmount) / 1e18).toFixed(6)} ETH per message
+                  </p>
+                )}
+              </form>
+
+              <div className="mt-6 pt-6 border-t border-white/20 text-center">
+                <p className="text-white/60 text-xs flex items-center justify-center gap-2">
+                  <span>🔒</span>Fully Anonymous & Secure on Base Network
+                </p>
+                <button
+                  onClick={() => navigate('/')}
+                  className="text-white hover:text-purple-200 text-center transition-colors text-sm mt-3"
+                >
+                  Get your own link →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,224 @@
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import html2canvas from 'html2canvas'
+
+export default function DashboardPage() {
+  const params = useParams()
+  const navigate = useNavigate()
+  const uniqueId = params.uniqueId
+  const [user, setUser] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState(null)
+
+  useEffect(() => {
+    const fetchUserAndMessages = async () => {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('unique_id', uniqueId)
+        .single()
+
+      if (userError || !userData) {
+        navigate('/')
+        return
+      }
+
+      setUser(userData)
+
+      console.log('Fetching messages for user_id:', userData.id)
+
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('user_id', userData.id)
+        .order('created_at', { ascending: false })
+
+      console.log('Messages fetched:', messagesData)
+      console.log('Messages error:', messagesError)
+
+      if (!messagesError && messagesData) {
+        setMessages(messagesData)
+      }
+
+      setLoading(false)
+    }
+
+    fetchUserAndMessages()
+
+    // Auto-refresh messages every 3 seconds
+    const interval = setInterval(fetchUserAndMessages, 3000)
+    return () => clearInterval(interval)
+  }, [uniqueId, navigate])
+
+  const handleDelete = async (messageId) => {
+    if (!confirm('Are you sure you want to delete this message?')) return
+
+    setDeleting(messageId)
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId)
+
+      if (!error) {
+        setMessages(messages.filter(m => m.id !== messageId))
+      }
+    } catch (err) {
+      console.error('Error deleting message:', err)
+      alert('Failed to delete message.')
+    } finally {
+      setDeleting(null)
+    }
+  }
+
+  const handleCopy = (message) => {
+    navigator.clipboard.writeText(message)
+    alert('Message copied!')
+  }
+
+  const handleShare = async (message) => {
+    const cardElement = document.getElementById(`card-${message.id}`)
+    if (!cardElement) return
+
+    try {
+      const canvas = await html2canvas(cardElement, {
+        backgroundColor: '#1a0b2e',
+        scale: 2,
+      })
+
+      canvas.toBlob((blob) => {
+        if (!blob) return
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = `secret-message-${Date.now()}.png`
+        link.href = url
+        link.click()
+        URL.revokeObjectURL(url)
+      })
+    } catch (err) {
+      console.error('Error generating image:', err)
+      alert('Failed to generate image.')
+    }
+  }
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString()
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen p-3 pb-6">
+      <div className="w-full max-w-md mx-auto">
+        <div className="relative mb-6">
+          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 px-6 py-2 rounded-full shadow-2xl">
+              <h1 className="text-xl font-bold text-white whitespace-nowrap">Message Board</h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="neon-card rounded-2xl p-4 mb-4 mt-24">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-white font-semibold text-sm">{user?.name}'s Messages</p>
+              <p className="text-purple-200 text-xs">{messages.length} total</p>
+            </div>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/u/${uniqueId}`
+                navigator.clipboard.writeText(url)
+                alert('Link copied!')
+              }}
+              className="glow-button text-white font-semibold py-2 px-4 rounded-lg text-xs"
+            >
+              📋 Copy Link
+            </button>
+          </div>
+        </div>
+
+        {messages.length === 0 ? (
+          <div className="neon-card rounded-2xl p-8 text-center">
+            <div className="text-4xl mb-3">📭</div>
+            <h2 className="text-lg font-bold text-white mb-2">Inbox Empty</h2>
+            <p className="text-purple-200 text-sm mb-4">
+              Distribute your link to start collecting anonymous thoughts!
+            </p>
+            <button
+              onClick={() => navigate(`/success/${uniqueId}`)}
+              className="glow-button text-white font-semibold py-2 px-6 rounded-lg text-sm"
+            >
+              Share Your Link
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {messages.map((msg) => (
+              <div key={msg.id}>
+                <div className="message-card">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-purple-300 text-xs font-medium">{formatDate(msg.created_at)}</span>
+                    <div className="flex gap-1">
+                      <button onClick={() => handleCopy(msg.message)} className="text-purple-300 hover:text-purple-200 p-1" title="Copy">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                      </button>
+                      <button onClick={() => handleShare(msg)} className="text-purple-300 hover:text-purple-200 p-1" title="Share">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+                      </button>
+                      <button onClick={() => handleDelete(msg.id)} disabled={deleting === msg.id} className="text-red-400 hover:text-red-300 p-1" title="Delete">
+                        {deleting === msg.id ? <div className="animate-spin h-4 w-4 border-2 border-red-400 border-t-transparent rounded-full"></div> : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                  <div className="mt-3 pt-3 border-t border-purple-300/20 flex items-center gap-2 text-purple-300 text-xs">
+                    <span>🔒</span><span>100% Anonymous</span>
+                  </div>
+                </div>
+
+                <div id={`card-${msg.id}`} className="fixed -left-[9999px] w-[600px] bg-gradient-to-br from-purple-900 via-purple-800 to-pink-900 p-12 rounded-3xl">
+                  <div className="text-center mb-8">
+                    <h1 className="text-4xl font-bold text-white mb-2">Secret Messages</h1>
+                    <p className="text-purple-200 text-lg">to {user?.name}</p>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 mb-8">
+                    <p className="text-white text-xl leading-relaxed">"{msg.message}"</p>
+                  </div>
+                  <div className="flex items-center justify-center gap-3 text-purple-200">
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
+                    <span className="text-lg font-semibold">100% Anonymous</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="text-center mt-6">
+          <button onClick={() => navigate('/')} className="text-purple-300 hover:text-purple-200 underline text-sm">
+            Generate your own link →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
