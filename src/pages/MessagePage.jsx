@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useAccount, useConnect, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi'
-import { parseEther } from 'viem'
 import { supabase } from '../lib/supabase'
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../lib/wagmi'
 
 export default function MessagePage() {
   const params = useParams()
@@ -14,23 +11,6 @@ export default function MessagePage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
-  const [waitingForWallet, setWaitingForWallet] = useState(false)
-
-  const { address, isConnected } = useAccount()
-  const { connect, connectors } = useConnect()
-  const { writeContract, data: hash, error: writeError, isPending: isWriting } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess: isConfirmed, isError: txError } = useWaitForTransactionReceipt({
-    hash,
-    confirmations: 0, // Immediate detection (no confirmations needed)
-    pollingInterval: 500, // Poll every 500ms for faster detection
-  })
-
-  // Read minBurnAmount from contract
-  const { data: minBurnAmount } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: CONTRACT_ABI,
-    functionName: 'minBurnAmount',
-  })
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -52,136 +32,43 @@ export default function MessagePage() {
     fetchUser()
   }, [uniqueId, navigate])
 
-  // Auto-send after wallet connects
-  useEffect(() => {
-    if (isConnected && waitingForWallet && address && message.trim()) {
-      setWaitingForWallet(false)
-      sendMessage()
-    }
-  }, [isConnected, waitingForWallet, address])
+  const handleSubmit = async (e) => {
+    e.preventDefault()
 
-  // Debug logging for transaction states
-  useEffect(() => {
-    if (hash) {
-      console.log('Transaction hash received:', hash)
-      console.log('isConfirming:', isConfirming)
-      console.log('isConfirmed:', isConfirmed)
-      console.log('txError:', txError)
-    }
-  }, [hash, isConfirming, isConfirmed, txError])
+    if (!message.trim()) return
 
-  // Auto-confirm after successful transaction
-  useEffect(() => {
-    if (isConfirmed && hash) {
-      console.log('✅ Transaction confirmed! Hash:', hash)
-      saveMessageToDatabase(hash)
-    }
-  }, [isConfirmed, hash])
+    setSubmitting(true)
 
-  const saveMessageToDatabase = async (txHash) => {
     try {
-      console.log('Saving message to database with data:', {
-        user_id: user.id,
-        message: message.trim(),
-        tx_hash: txHash,
-        sender_address: address
-      })
+      console.log('Saving anonymous message to database')
 
       const { data, error: dbError } = await supabase
         .from('messages')
         .insert([{
           user_id: user.id,
           message: message.trim(),
-          tx_hash: txHash,
-          sender_address: address
+          tx_hash: null,
+          sender_address: null
         }])
         .select()
 
       if (dbError) {
         console.error('Database error:', dbError)
-        alert(`Failed to save message: ${dbError.message}`)
+        alert(`Failed to send message: ${dbError.message}`)
         setSubmitting(false)
         return
       }
 
-      console.log('✅ Message saved successfully:', data)
+      console.log('✅ Message sent successfully:', data)
       setSubmitted(true)
       setMessage('')
       setSubmitting(false)
     } catch (err) {
-      console.error('Error saving to database:', err)
-      alert(`Failed to save message: ${err.message}`)
-      setSubmitting(false)
-    }
-  }
-
-  const sendMessage = () => {
-    setSubmitting(true)
-
-    try {
-      // Write message to blockchain
-      const burnAmount = minBurnAmount || parseEther('0.0001') // Default to 0.0001 ETH if not set
-
-      console.log('Sending confession onchain with burn amount:', burnAmount)
-
-      writeContract({
-        address: CONTRACT_ADDRESS,
-        abi: CONTRACT_ABI,
-        functionName: 'confess',
-        args: [message.trim()],
-        value: burnAmount,
-      })
-
-    } catch (err) {
       console.error('Error sending message:', err)
-      alert(`Failed to send message: ${err.message || 'Please try again.'}`)
+      alert(`Failed to send message: ${err.message}`)
       setSubmitting(false)
     }
   }
-
-  const handleConnectWallet = () => {
-    if (!connectors || connectors.length === 0) {
-      alert('No wallet connectors available. Please install MetaMask or Rabby.')
-      return
-    }
-
-    setWaitingForWallet(true)
-    const connector = connectors[0]
-    console.log('Connecting with connector:', connector.name)
-    connect({ connector })
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-
-    if (!message.trim()) return
-
-    if (!isConnected) {
-      handleConnectWallet()
-      return
-    }
-
-    sendMessage()
-  }
-
-  // Handle transaction errors
-  useEffect(() => {
-    if (txError) {
-      console.error('Transaction confirmation error:', txError)
-      alert('Transaction failed to confirm. Please try again.')
-      setSubmitting(false)
-    }
-  }, [txError])
-
-  // Handle write errors
-  useEffect(() => {
-    if (writeError) {
-      console.error('Transaction error:', writeError)
-      alert(`Transaction failed: ${writeError.message}`)
-      setSubmitting(false)
-      setWaitingForWallet(false)
-    }
-  }, [writeError])
 
   if (loading) {
     return (
@@ -264,52 +151,21 @@ export default function MessagePage() {
                   </div>
                 </div>
 
-                {!isConnected && (
-                  <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-3 text-yellow-200 text-center text-sm mb-4">
-                    ⚠️ Link your wallet to submit thoughts securely onchain
-                  </div>
-                )}
-
-                {isConfirming && hash && (
-                  <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-3 text-blue-200 text-center text-sm mb-4">
-                    ⏳ Waiting for transaction confirmation...
-                    <div className="text-xs mt-1 opacity-75">
-                      Tx: {hash.slice(0, 10)}...{hash.slice(-8)}
-                    </div>
-                  </div>
-                )}
-
-                {isConfirmed && (
-                  <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-3 text-green-200 text-center text-sm mb-4">
-                    ✅ Transaction confirmed! Saving...
-                  </div>
-                )}
-
                 <button
                   type="submit"
-                  disabled={!message.trim() || (isConnected && (submitting || isWriting || isConfirming))}
+                  disabled={!message.trim() || submitting}
                   className="w-full bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-500 hover:to-blue-600
                            text-white font-bold py-3 px-6 rounded-xl text-lg
                            disabled:opacity-50 disabled:cursor-not-allowed
                            transform hover:scale-105 transition-all duration-300 shadow-xl"
                 >
-                  {!isConnected ? 'Connect Wallet to Submit' :
-                   isWriting ? 'Awaiting Approval...' :
-                   isConfirming ? 'Recording Onchain...' :
-                   submitting ? 'Finalizing...' :
-                   'Submit Anonymously'}
+                  {submitting ? 'Sending...' : 'Submit Anonymously'}
                 </button>
-
-                {minBurnAmount && (
-                  <p className="text-white/60 text-xs text-center mt-2">
-                    ⚡ Burn: {(Number(minBurnAmount) / 1e18).toFixed(6)} ETH per message
-                  </p>
-                )}
               </form>
 
               <div className="mt-6 pt-6 border-t border-white/20 text-center">
                 <p className="text-white/60 text-xs flex items-center justify-center gap-2">
-                  <span>🔒</span>Fully Anonymous & Secure on Base Network
+                  <span>🔒</span>Fully Anonymous & Secure
                 </p>
                 <button
                   onClick={() => navigate('/')}
