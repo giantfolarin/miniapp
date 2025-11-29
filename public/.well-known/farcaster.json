@@ -24,7 +24,7 @@
     "tags": ["anonymous", "messaging", "social", "fun", "Secret"],
     "heroImageUrl": "https://secret-message-miniapp.vercel.app/hero.png",
     "tagline": "Share secrets. Stay anonymous.",
-    "ogTitle": "Secret Messages - Anonymous Message Platform",
+    "ogTitle": "Secret Messages",
     "ogDescription": "Create your link and get anonymous messages from anyone!",
     "ogImageUrl": "https://secret-message-miniapp.vercel.app/og-image.png",
     "noindex": false
