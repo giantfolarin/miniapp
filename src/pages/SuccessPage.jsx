@@ -33,38 +33,54 @@ export default function SuccessPage() {
   }, [uniqueId, navigate])
 
   const copyToClipboard = async () => {
+    // Create a temporary input element
+    const input = document.createElement('input')
+    input.value = shareUrl
+    input.style.position = 'absolute'
+    input.style.left = '0'
+    input.style.top = '0'
+    input.style.opacity = '0'
+    input.style.pointerEvents = 'none'
+
+    document.body.appendChild(input)
+
     try {
-      // Try modern clipboard API first
+      // Focus and select the text
+      input.focus()
+      input.select()
+      input.setSelectionRange(0, input.value.length)
+
+      // Try to copy using different methods
+      let success = false
+
+      // Method 1: Modern clipboard API
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareUrl)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-        return
+        try {
+          await navigator.clipboard.writeText(shareUrl)
+          success = true
+        } catch (e) {
+          console.log('Clipboard API failed:', e)
+        }
       }
 
-      // Fallback for iframe/miniapp contexts
-      const textarea = document.createElement('textarea')
-      textarea.value = shareUrl
-      textarea.style.position = 'fixed'
-      textarea.style.left = '-999999px'
-      textarea.style.top = '-999999px'
-      document.body.appendChild(textarea)
-      textarea.focus()
-      textarea.select()
+      // Method 2: execCommand
+      if (!success) {
+        try {
+          success = document.execCommand('copy')
+        } catch (e) {
+          console.log('execCommand failed:', e)
+        }
+      }
 
-      try {
-        document.execCommand('copy')
+      if (success) {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
-      } catch (execErr) {
-        console.error('execCommand copy failed:', execErr)
-        alert('Failed to copy. Please copy manually: ' + shareUrl)
-      } finally {
-        document.body.removeChild(textarea)
+      } else {
+        // Method 3: Show prompt with the link
+        prompt('Copy this link:', shareUrl)
       }
-    } catch (err) {
-      console.error('Failed to copy:', err)
-      alert('Failed to copy. Please copy manually: ' + shareUrl)
+    } finally {
+      document.body.removeChild(input)
     }
   }
 

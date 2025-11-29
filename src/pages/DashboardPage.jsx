@@ -75,36 +75,47 @@ export default function DashboardPage() {
   }
 
   const handleCopy = async (message) => {
+    const input = document.createElement('input')
+    input.value = message
+    input.style.position = 'absolute'
+    input.style.left = '0'
+    input.style.top = '0'
+    input.style.opacity = '0'
+    input.style.pointerEvents = 'none'
+
+    document.body.appendChild(input)
+
     try {
-      // Try modern clipboard API first
+      input.focus()
+      input.select()
+      input.setSelectionRange(0, input.value.length)
+
+      let success = false
+
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(message)
-        alert('Message copied!')
-        return
+        try {
+          await navigator.clipboard.writeText(message)
+          success = true
+        } catch (e) {
+          console.log('Clipboard API failed:', e)
+        }
       }
 
-      // Fallback for iframe/miniapp contexts
-      const textarea = document.createElement('textarea')
-      textarea.value = message
-      textarea.style.position = 'fixed'
-      textarea.style.left = '-999999px'
-      textarea.style.top = '-999999px'
-      document.body.appendChild(textarea)
-      textarea.focus()
-      textarea.select()
-
-      try {
-        document.execCommand('copy')
-        alert('Message copied!')
-      } catch (execErr) {
-        console.error('execCommand copy failed:', execErr)
-        alert('Failed to copy message')
-      } finally {
-        document.body.removeChild(textarea)
+      if (!success) {
+        try {
+          success = document.execCommand('copy')
+        } catch (e) {
+          console.log('execCommand failed:', e)
+        }
       }
-    } catch (err) {
-      console.error('Failed to copy:', err)
-      alert('Failed to copy message')
+
+      if (success) {
+        alert('Message copied!')
+      } else {
+        prompt('Copy this message:', message)
+      }
+    } finally {
+      document.body.removeChild(input)
     }
   }
 
@@ -184,36 +195,47 @@ export default function DashboardPage() {
             <button
               onClick={async () => {
                 const url = `${window.location.origin}/u/${uniqueId}`
+                const input = document.createElement('input')
+                input.value = url
+                input.style.position = 'absolute'
+                input.style.left = '0'
+                input.style.top = '0'
+                input.style.opacity = '0'
+                input.style.pointerEvents = 'none'
+
+                document.body.appendChild(input)
+
                 try {
-                  // Try modern clipboard API first
+                  input.focus()
+                  input.select()
+                  input.setSelectionRange(0, input.value.length)
+
+                  let success = false
+
                   if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(url)
-                    alert('Link copied!')
-                    return
+                    try {
+                      await navigator.clipboard.writeText(url)
+                      success = true
+                    } catch (e) {
+                      console.log('Clipboard API failed:', e)
+                    }
                   }
 
-                  // Fallback for iframe/miniapp contexts
-                  const textarea = document.createElement('textarea')
-                  textarea.value = url
-                  textarea.style.position = 'fixed'
-                  textarea.style.left = '-999999px'
-                  textarea.style.top = '-999999px'
-                  document.body.appendChild(textarea)
-                  textarea.focus()
-                  textarea.select()
-
-                  try {
-                    document.execCommand('copy')
-                    alert('Link copied!')
-                  } catch (execErr) {
-                    console.error('execCommand copy failed:', execErr)
-                    alert('Failed to copy link')
-                  } finally {
-                    document.body.removeChild(textarea)
+                  if (!success) {
+                    try {
+                      success = document.execCommand('copy')
+                    } catch (e) {
+                      console.log('execCommand failed:', e)
+                    }
                   }
-                } catch (err) {
-                  console.error('Failed to copy:', err)
-                  alert('Failed to copy link')
+
+                  if (success) {
+                    alert('Link copied!')
+                  } else {
+                    prompt('Copy this link:', url)
+                  }
+                } finally {
+                  document.body.removeChild(input)
                 }
               }}
               className="glow-button text-white font-semibold py-2 px-4 rounded-lg text-xs"
