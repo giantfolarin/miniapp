@@ -74,9 +74,38 @@ export default function DashboardPage() {
     }
   }
 
-  const handleCopy = (message) => {
-    navigator.clipboard.writeText(message)
-    alert('Message copied!')
+  const handleCopy = async (message) => {
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(message)
+        alert('Message copied!')
+        return
+      }
+
+      // Fallback for iframe/miniapp contexts
+      const textarea = document.createElement('textarea')
+      textarea.value = message
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-999999px'
+      textarea.style.top = '-999999px'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+
+      try {
+        document.execCommand('copy')
+        alert('Message copied!')
+      } catch (execErr) {
+        console.error('execCommand copy failed:', execErr)
+        alert('Failed to copy message')
+      } finally {
+        document.body.removeChild(textarea)
+      }
+    } catch (err) {
+      console.error('Failed to copy:', err)
+      alert('Failed to copy message')
+    }
   }
 
   const handleShare = async (message) => {
@@ -130,6 +159,15 @@ export default function DashboardPage() {
     <div className="min-h-screen p-3 pb-6">
       <div className="w-full max-w-md mx-auto">
         <div className="relative mb-6">
+          <button
+            onClick={() => navigate(`/success/${uniqueId}`)}
+            className="absolute -top-8 left-4 z-10 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white p-2 rounded-full transition-all duration-300"
+            title="Back"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
           <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-10">
             <div className="bg-gradient-to-r from-purple-600 via-purple-500 to-pink-500 px-6 py-2 rounded-full shadow-2xl">
               <h1 className="text-xl font-bold text-white whitespace-nowrap">Message Board</h1>
@@ -144,10 +182,39 @@ export default function DashboardPage() {
               <p className="text-purple-200 text-xs">{messages.length} total</p>
             </div>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const url = `${window.location.origin}/u/${uniqueId}`
-                navigator.clipboard.writeText(url)
-                alert('Link copied!')
+                try {
+                  // Try modern clipboard API first
+                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(url)
+                    alert('Link copied!')
+                    return
+                  }
+
+                  // Fallback for iframe/miniapp contexts
+                  const textarea = document.createElement('textarea')
+                  textarea.value = url
+                  textarea.style.position = 'fixed'
+                  textarea.style.left = '-999999px'
+                  textarea.style.top = '-999999px'
+                  document.body.appendChild(textarea)
+                  textarea.focus()
+                  textarea.select()
+
+                  try {
+                    document.execCommand('copy')
+                    alert('Link copied!')
+                  } catch (execErr) {
+                    console.error('execCommand copy failed:', execErr)
+                    alert('Failed to copy link')
+                  } finally {
+                    document.body.removeChild(textarea)
+                  }
+                } catch (err) {
+                  console.error('Failed to copy:', err)
+                  alert('Failed to copy link')
+                }
               }}
               className="glow-button text-white font-semibold py-2 px-4 rounded-lg text-xs"
             >
