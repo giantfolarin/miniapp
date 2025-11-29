@@ -25,6 +25,9 @@ export default function MessagePage() {
         return
       }
 
+      console.log('Fetched user data:', data)
+      console.log('User name from database:', `"${data.name}"`)
+
       setUser(data)
       setLoading(false)
     }
