@@ -34,11 +34,37 @@ export default function SuccessPage() {
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+        return
+      }
+
+      // Fallback for iframe/miniapp contexts
+      const textarea = document.createElement('textarea')
+      textarea.value = shareUrl
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-999999px'
+      textarea.style.top = '-999999px'
+      document.body.appendChild(textarea)
+      textarea.focus()
+      textarea.select()
+
+      try {
+        document.execCommand('copy')
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (execErr) {
+        console.error('execCommand copy failed:', execErr)
+        alert('Failed to copy. Please copy manually: ' + shareUrl)
+      } finally {
+        document.body.removeChild(textarea)
+      }
     } catch (err) {
       console.error('Failed to copy:', err)
+      alert('Failed to copy. Please copy manually: ' + shareUrl)
     }
   }
 
