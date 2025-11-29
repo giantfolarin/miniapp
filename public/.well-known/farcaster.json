@@ -15,8 +15,8 @@
     "splashImageUrl": "https://secret-message-miniapp.vercel.app/splash.png",
     "splashBackgroundColor": "#7c3aed",
     "webhookUrl": "https://your-domain.com/api/webhook",
-    "subtitle": "Receive anonymous messages from anyone",
-    "description": "Create your unique link and receive 100% anonymous messages from your friends, co-workers, and fans. Share your link on Whatsapp, Instagram, Twitter and start receiving secret messages instantly!",
+    "subtitle": "Receive anonymous messages",
+    "description": "Create your unique link and start receive anonymous messages from your friends and fans. Also share your link on social platforms to start receiving secret messages!",
     "screenshotUrls": [
       "https://secret-message-miniapp.vercel.app/screenshot.png"
     ],
