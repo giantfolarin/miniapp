@@ -5,30 +5,28 @@
     "signature": "REPLACE_WITH_GENERATED_SIGNATURE"
   },
   "baseBuilder": {
-    "ownerAddress": "0x0768cB5306E12a133d54E5aAA0819375560afA59"
+    "ownerAddress": "0xBbca064743AA81e53c93Ce0ED7DADeE450f3c298"
   },
   "miniapp": {
     "version": "1",
     "name": "Secret Messages",
-    "homeUrl": "https://your-domain.com",
-    "iconUrl": "https://your-domain.com/icon.png",
-    "splashImageUrl": "https://your-domain.com/splash.png",
+    "homeUrl": "https://secret-message-miniapp.vercel.app/",
+    "iconUrl": "https://secret-message-miniapp.vercel.app/icon.png",
+    "splashImageUrl": "https://secret-message-miniapp.vercel.app/splash.png",
     "splashBackgroundColor": "#7c3aed",
     "webhookUrl": "https://your-domain.com/api/webhook",
     "subtitle": "Receive anonymous messages from anyone",
     "description": "Create your unique link and receive 100% anonymous messages from your friends, co-workers, and fans. Share your link on Whatsapp, Instagram, Twitter and start receiving secret messages instantly!",
     "screenshotUrls": [
-      "https://your-domain.com/screenshot1.png",
-      "https://your-domain.com/screenshot2.png",
-      "https://your-domain.com/screenshot3.png"
+      "https://secret-message-miniapp.vercel.app/screenshot.png"
     ],
     "primaryCategory": "social",
     "tags": ["anonymous", "messaging", "social", "fun", "Secret"],
-    "heroImageUrl": "https://your-domain.com/hero.png",
+    "heroImageUrl": "https://secret-message-miniapp.vercel.app/hero.png",
     "tagline": "Share secrets. Stay anonymous.",
     "ogTitle": "Secret Messages - Anonymous Message Platform",
     "ogDescription": "Create your link and get anonymous messages from anyone!",
-    "ogImageUrl": "https://your-domain.com/og-image.png",
+    "ogImageUrl": "https://secret-message-miniapp.vercel.app/og-image.png",
     "noindex": false
   }
 }
