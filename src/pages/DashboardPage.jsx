@@ -11,6 +11,8 @@ export default function DashboardPage() {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(null)
+  const [shareModal, setShareModal] = useState(false)
+  const [shareImageUrl, setShareImageUrl] = useState(null)
 
   useEffect(() => {
     const fetchUserAndMessages = async () => {
@@ -132,19 +134,27 @@ export default function DashboardPage() {
         allowTaint: true,
       })
 
-      canvas.toBlob((blob) => {
-        if (!blob) return
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.download = `secret-message-${Date.now()}.png`
-        link.href = url
-        link.click()
-        URL.revokeObjectURL(url)
-      }, 'image/png', 1.0)
+      // Convert canvas to data URL and show in modal
+      const dataUrl = canvas.toDataURL('image/png', 1.0)
+      setShareImageUrl(dataUrl)
+      setShareModal(true)
     } catch (err) {
       console.error('Error generating image:', err)
       alert('Failed to generate image.')
     }
+  }
+
+  const downloadImage = () => {
+    if (!shareImageUrl) return
+    const link = document.createElement('a')
+    link.download = `secret-message-${Date.now()}.png`
+    link.href = shareImageUrl
+    link.click()
+  }
+
+  const shareToInstagram = () => {
+    downloadImage()
+    alert('Image downloaded! You can now share it to Instagram.')
   }
 
   const formatDate = (dateString) => {
@@ -315,6 +325,7 @@ export default function DashboardPage() {
 
                   {/* Footer */}
                   <div className="pb-8 px-8 text-center">
+                    <p className="text-white text-xl font-semibold mb-3">secret-message-miniapp.vercel.app</p>
                     <div className="flex items-center justify-center gap-2 text-yellow-300">
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
@@ -334,6 +345,45 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Share Modal */}
+      {shareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setShareModal(false)}>
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">Share the Answer using the <span className="text-purple-600">Share Now</span> button below now!</h3>
+            </div>
+
+            {shareImageUrl && (
+              <div className="mb-6">
+                <img src={shareImageUrl} alt="Share preview" className="w-full rounded-2xl shadow-lg" />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={downloadImage}
+                className="bg-black text-white font-bold py-4 px-6 rounded-full text-base hover:bg-gray-800 transition-colors"
+              >
+                Share Now
+              </button>
+              <button
+                onClick={shareToInstagram}
+                className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 text-white font-bold py-4 px-6 rounded-full text-base hover:opacity-90 transition-opacity"
+              >
+                Instagram
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShareModal(false)}
+              className="mt-4 w-full text-gray-500 hover:text-gray-700 text-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
