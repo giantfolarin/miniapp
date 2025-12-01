@@ -151,25 +151,54 @@ export default function DashboardPage() {
       // Convert data URL to blob
       const response = await fetch(shareImageUrl)
       const blob = await response.blob()
-      const file = new File([blob], `secret-message-${Date.now()}.png`, { type: 'image/png' })
+      const file = new File([blob], 'secretmessage.png', { type: 'image/png' })
 
-      // Check if Web Share API is supported
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Secret Message',
-          text: 'Check out this secret message!'
-        })
-      } else {
-        // Fallback: download the image
-        const link = document.createElement('a')
-        link.download = `secret-message-${Date.now()}.png`
-        link.href = shareImageUrl
-        link.click()
+      // Try Web Share API with files first
+      if (navigator.share) {
+        try {
+          // Check if files can be shared
+          const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] })
+
+          if (canShareFiles) {
+            console.log('Sharing with files...')
+            await navigator.share({
+              files: [file],
+              title: 'Secret Message',
+              text: 'Check out this secret message!'
+            })
+            console.log('Share completed successfully')
+            return
+          } else {
+            console.log('File sharing not supported, trying without files...')
+            // Try sharing without files (just text/URL)
+            await navigator.share({
+              title: 'Secret Message',
+              text: 'Check out this secret message!',
+              url: `${window.location.origin}/u/${uniqueId}`
+            })
+            console.log('Share completed successfully (without file)')
+            return
+          }
+        } catch (shareErr) {
+          // User cancelled or share failed
+          if (shareErr.name === 'AbortError') {
+            console.log('Share cancelled by user')
+            return
+          }
+          console.error('Share API error:', shareErr)
+          throw shareErr
+        }
       }
-    } catch (err) {
-      console.error('Error sharing:', err)
+
       // Fallback: download the image
+      console.log('Web Share API not available, downloading...')
+      const link = document.createElement('a')
+      link.download = `secret-message-${Date.now()}.png`
+      link.href = shareImageUrl
+      link.click()
+    } catch (err) {
+      console.error('Error in shareNow:', err)
+      // Final fallback: download the image
       const link = document.createElement('a')
       link.download = `secret-message-${Date.now()}.png`
       link.href = shareImageUrl
