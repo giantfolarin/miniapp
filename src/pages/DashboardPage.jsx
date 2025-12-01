@@ -144,17 +144,43 @@ export default function DashboardPage() {
     }
   }
 
-  const downloadImage = () => {
+  const shareNow = async () => {
     if (!shareImageUrl) return
-    const link = document.createElement('a')
-    link.download = `secret-message-${Date.now()}.png`
-    link.href = shareImageUrl
-    link.click()
+
+    try {
+      // Convert data URL to blob
+      const response = await fetch(shareImageUrl)
+      const blob = await response.blob()
+      const file = new File([blob], `secret-message-${Date.now()}.png`, { type: 'image/png' })
+
+      // Check if Web Share API is supported
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Secret Message',
+          text: 'Check out this secret message!'
+        })
+      } else {
+        // Fallback: download the image
+        const link = document.createElement('a')
+        link.download = `secret-message-${Date.now()}.png`
+        link.href = shareImageUrl
+        link.click()
+      }
+    } catch (err) {
+      console.error('Error sharing:', err)
+      // Fallback: download the image
+      const link = document.createElement('a')
+      link.download = `secret-message-${Date.now()}.png`
+      link.href = shareImageUrl
+      link.click()
+    }
   }
 
-  const shareToInstagram = () => {
-    downloadImage()
-    alert('Image downloaded! You can now share it to Instagram.')
+  const shareToTwitter = () => {
+    const text = encodeURIComponent('Check out this secret message! 💭')
+    const url = encodeURIComponent(`${window.location.origin}/u/${uniqueId}`)
+    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank')
   }
 
   const formatDate = (dateString) => {
@@ -325,7 +351,6 @@ export default function DashboardPage() {
 
                   {/* Footer */}
                   <div className="pb-8 px-8 text-center">
-                    <p className="text-white text-xl font-semibold mb-3">secret-message-miniapp.vercel.app</p>
                     <div className="flex items-center justify-center gap-2 text-yellow-300">
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
@@ -362,16 +387,19 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={downloadImage}
+                onClick={shareNow}
                 className="bg-black text-white font-bold py-4 px-6 rounded-full text-base hover:bg-gray-800 transition-colors"
               >
                 Share Now
               </button>
               <button
-                onClick={shareToInstagram}
-                className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-600 text-white font-bold py-4 px-6 rounded-full text-base hover:opacity-90 transition-opacity"
+                onClick={shareToTwitter}
+                className="bg-black text-white font-bold py-4 px-6 rounded-full text-base hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
               >
-                Instagram
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                Twitter
               </button>
             </div>
 
