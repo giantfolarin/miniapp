@@ -125,8 +125,11 @@ export default function DashboardPage() {
 
     try {
       const canvas = await html2canvas(cardElement, {
-        backgroundColor: '#1a0b2e',
+        backgroundColor: null,
         scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
       })
 
       canvas.toBlob((blob) => {
@@ -137,7 +140,7 @@ export default function DashboardPage() {
         link.href = url
         link.click()
         URL.revokeObjectURL(url)
-      })
+      }, 'image/png', 1.0)
     } catch (err) {
       console.error('Error generating image:', err)
       alert('Failed to generate image.')
@@ -284,17 +287,44 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div id={`card-${msg.id}`} className="fixed -left-[9999px] w-[600px] bg-gradient-to-br from-purple-900 via-purple-800 to-pink-900 p-12 rounded-3xl">
-                  <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-white mb-2">Secret Messages</h1>
-                    <p className="text-purple-200 text-lg">to {user?.name}</p>
+                <div id={`card-${msg.id}`} className="fixed -left-[9999px] w-[600px] h-[900px] bg-gradient-to-br from-purple-700 via-purple-600 to-pink-600 rounded-3xl flex flex-col">
+                  {/* Header */}
+                  <div className="flex items-center justify-center gap-3 pt-8 pb-6">
+                    <div className="bg-white p-3 rounded-2xl shadow-lg">
+                      <svg className="w-10 h-10 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <h1 className="text-4xl font-bold text-white" style={{ fontFamily: 'cursive' }}>Secret Message</h1>
                   </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 mb-8">
-                    <p className="text-white text-xl leading-relaxed">"{msg.message}"</p>
+
+                  {/* Message Container - Centered */}
+                  <div className="flex-1 flex items-center justify-center px-8">
+                    <div className="relative w-full max-w-lg">
+                      {/* Opening Quote */}
+                      <div className="absolute -top-8 -left-4 text-white/40 text-8xl font-serif leading-none">"</div>
+
+                      {/* Message Text */}
+                      <div className="relative z-10 px-12 py-8">
+                        <p className="text-white text-3xl leading-relaxed text-center font-medium break-words">
+                          {msg.message}
+                        </p>
+                      </div>
+
+                      {/* Closing Quote */}
+                      <div className="absolute -bottom-12 -right-4 text-white/40 text-8xl font-serif leading-none">"</div>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-center gap-3 text-purple-200">
-                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
-                    <span className="text-lg font-semibold">100% Anonymous</span>
+
+                  {/* Footer */}
+                  <div className="pb-8 px-8 text-center">
+                    <p className="text-white text-2xl font-semibold mb-3">www.secretmessage.link</p>
+                    <div className="flex items-center justify-center gap-2 text-yellow-300">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-lg font-semibold">100% anonymous</span>
+                    </div>
                   </div>
                 </div>
               </div>
