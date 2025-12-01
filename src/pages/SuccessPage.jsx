@@ -167,7 +167,12 @@ export default function SuccessPage() {
                 </button>
 
                 <button
-                  onClick={() => navigate('/')}
+                  onClick={() => {
+                    // Clear session when generating new link
+                    localStorage.removeItem('secretMessageSession')
+                    console.log('Session cleared')
+                    navigate('/')
+                  }}
                   className="text-white hover:text-purple-200 text-center transition-colors text-sm"
                 >
                   Generate new link →

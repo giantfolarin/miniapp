@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { nanoid } from 'nanoid'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
@@ -10,7 +10,9 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const [waitingForWallet, setWaitingForWallet] = useState(false)
   const [error, setError] = useState('')
+  const [checkingSession, setCheckingSession] = useState(true) // Add loading state for session check
   const navigate = useNavigate()
+  const hasCheckedSession = useRef(false)
 
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending, error: connectError } = useConnect()
@@ -25,6 +27,60 @@ export default function HomePage() {
       setWaitingForWallet(false)
     }
   }, [connectError])
+
+  // Check for existing session on mount - runs once when wallet is connected
+  useEffect(() => {
+    console.log('Session restoration check - isConnected:', isConnected, 'address:', address, 'hasChecked:', hasCheckedSession.current)
+
+    if (isConnected && address && !hasCheckedSession.current) {
+      hasCheckedSession.current = true
+      const savedSession = localStorage.getItem('secretMessageSession')
+      console.log('Saved session from localStorage:', savedSession)
+
+      if (savedSession) {
+        try {
+          const session = JSON.parse(savedSession)
+          console.log('Parsed session:', session)
+
+          // Compare addresses case-insensitively
+          const addressMatch = session.walletAddress?.toLowerCase() === address.toLowerCase()
+          console.log('Address match:', addressMatch, 'Session address:', session.walletAddress, 'Current address:', address)
+
+          if (addressMatch && session.uniqueId) {
+            console.log('✅ Found existing session! Redirecting to success page:', session.uniqueId)
+            navigate(`/success/${session.uniqueId}`)
+            // Don't set checkingSession to false here, let the redirect happen
+            return
+          } else {
+            console.log('❌ Session exists but address does not match')
+            // Clear mismatched session
+            localStorage.removeItem('secretMessageSession')
+          }
+        } catch (err) {
+          console.error('Error parsing session:', err)
+          localStorage.removeItem('secretMessageSession')
+        }
+      } else {
+        console.log('No saved session found in localStorage')
+      }
+
+      // Session check complete, show the form
+      setCheckingSession(false)
+    }
+  }, [isConnected, address, navigate])
+
+  // Timeout for session check - if wallet doesn't connect in 2 seconds, show the form
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (checkingSession && !hasCheckedSession.current) {
+        console.log('Session check timeout - showing form')
+        setCheckingSession(false)
+        hasCheckedSession.current = true
+      }
+    }, 2000)
+
+    return () => clearTimeout(timer)
+  }, [checkingSession])
 
   // Auto-proceed with link creation after wallet connects
   useEffect(() => {
@@ -54,6 +110,16 @@ export default function HomePage() {
         console.error('Database error:', dbError)
         throw dbError
       }
+
+      // Save session to localStorage for persistence
+      const session = {
+        uniqueId,
+        walletAddress: address.toLowerCase(), // Store in lowercase for consistent comparison
+        name: name.trim(),
+        timestamp: new Date().toISOString()
+      }
+      localStorage.setItem('secretMessageSession', JSON.stringify(session))
+      console.log('Session saved to localStorage:', session)
 
       navigate(`/success/${uniqueId}`)
     } catch (err) {
@@ -108,6 +174,18 @@ export default function HomePage() {
 
     // Wallet is already connected, proceed with creating link
     await createLink()
+  }
+
+  // Show loading spinner while checking for existing session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-white text-lg">Checking for existing session...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
