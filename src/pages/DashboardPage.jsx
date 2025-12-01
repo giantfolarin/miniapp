@@ -376,7 +376,7 @@ export default function DashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setShareModal(false)}>
           <div className="bg-white rounded-3xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="text-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">Share the Answer using the <span className="text-purple-600">Share Now</span> button below now!</h3>
+              <h3 className="text-xl font-bold text-gray-800">Share the Result using the <span className="text-purple-600">Share Now</span> button below now!</h3>
             </div>
 
             {shareImageUrl && (
