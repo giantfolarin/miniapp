@@ -176,7 +176,9 @@ export default function DashboardPage() {
         return
       }
 
-      console.log('Storage upload failed, trying direct share:', uploadError)
+      // Show the actual error
+      alert(`⚠️ Storage upload failed: ${uploadError.message}\n\nMake sure:\n1. Bucket "shared-images" exists\n2. Bucket is PUBLIC\n3. RLS policy allows INSERT for anonymous users`)
+      console.log('Full upload error:', uploadError)
 
       // Fallback: Try Web Share API
       const file = new File([blob], 'secret-message.png', { type: 'image/png' })
