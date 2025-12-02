@@ -144,60 +144,33 @@ export default function DashboardPage() {
     }
   }
 
-  const shareNow = async () => {
+  const shareNow = () => {
     if (!shareImageUrl) return
 
-    try {
-      // Convert data URL to blob
-      const response = await fetch(shareImageUrl)
-      const blob = await response.blob()
-
-      // Create a File object from the blob
-      const file = new File([blob], 'secret-message.png', { type: 'image/png' })
-
-      // Try Web Share API with file
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Secret Message',
-          text: 'Check out this secret message!'
-        })
-        setShareModal(false)
-        return
-      }
-
-      // Fallback: Try without canShare check (some browsers don't have it)
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: 'Secret Message',
-            text: 'Check out this secret message!'
-          })
-          setShareModal(false)
-          return
-        } catch (shareErr) {
-          console.log('Share failed, trying download fallback:', shareErr)
-        }
-      }
-
-      // Final fallback: Trigger download
-      const blobUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = 'secret-message.png'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(blobUrl)
-
+    // Simply open image in new tab - this always works
+    const newTab = window.open()
+    if (newTab) {
+      newTab.document.write(`
+        <html>
+          <head>
+            <title>Secret Message</title>
+            <style>
+              body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #000; }
+              img { max-width: 100%; height: auto; }
+            </style>
+          </head>
+          <body>
+            <img src="${shareImageUrl}" alt="Secret Message" />
+          </body>
+        </html>
+      `)
+      newTab.document.close()
       setShareModal(false)
       setTimeout(() => {
-        alert('📱 Image downloaded!\n\nCheck your Downloads folder and share it to any app!')
-      }, 300)
-    } catch (err) {
-      console.error('Share error:', err)
-      alert('Error sharing. Please try the Twitter button.')
+        alert('📱 Long press the image to save it, then share to any app!')
+      }, 500)
+    } else {
+      alert('❌ Please allow popups and try again')
     }
   }
 
