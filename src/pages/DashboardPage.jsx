@@ -147,13 +147,32 @@ export default function DashboardPage() {
   const shareNow = async () => {
     if (!shareImageUrl) return
 
-    // Show instructions immediately
-    alert('📱 How to save & share:\n\n' +
-      '1. LONG PRESS the image below\n' +
-      '2. Tap "Save Image" or "Download Image"\n' +
-      '3. The image saves to your Photos/Gallery\n' +
-      '4. Open Photos and share to WhatsApp, Instagram, Telegram, etc!\n\n' +
-      'Or use the Twitter button to share directly.')
+    try {
+      // Convert data URL to blob
+      const response = await fetch(shareImageUrl)
+      const blob = await response.blob()
+
+      // Create blob URL
+      const blobUrl = URL.createObjectURL(blob)
+
+      // Create download link
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = 'secret-message.png'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+
+      // Close modal and show success
+      setShareModal(false)
+      setTimeout(() => {
+        alert('✅ Image saved!\n\n📱 Go to your Photos/Gallery app and share to:\n• WhatsApp\n• Instagram\n• Telegram\n• Facebook\nOr any other app!')
+      }, 300)
+    } catch (err) {
+      console.error('Download error:', err)
+      alert('Please try the Twitter button to share, or take a screenshot of the image.')
+    }
   }
 
   const shareToTwitter = () => {
