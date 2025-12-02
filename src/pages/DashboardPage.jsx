@@ -170,9 +170,7 @@ export default function DashboardPage() {
         }
       }
 
-      // For iframes (like Farcaster), open image in new tab where it can be saved
-      setShareModal(false)
-
+      // Try to open in new window (may be blocked in iframe)
       const newWindow = window.open('', '_blank')
       if (newWindow) {
         newWindow.document.write(`
@@ -322,20 +320,25 @@ export default function DashboardPage() {
           </html>
         `)
         newWindow.document.close()
+        setShareModal(false)
       } else {
-        // Popup blocked
-        alert('📱 Instructions:\n\n' +
-          '1. LONG PRESS the image in the preview\n' +
-          '2. Tap "Save Image"\n' +
+        // Window open blocked - show instructions in current modal
+        alert('📱 To save & share:\n\n' +
+          '1. LONG PRESS the image below\n' +
+          '2. Tap "Save Image" or "Download Image"\n' +
           '3. Go to Photos/Gallery\n' +
-          '4. Share to any app!\n\n' +
-          'Or use the Twitter button.')
+          '4. Share to WhatsApp, Instagram, etc!\n\n' +
+          'Or use the Twitter button to share directly.')
       }
 
     } catch (err) {
       console.error('Share error:', err)
-      setShareModal(false)
-      alert('💡 Long press the image in the preview and tap "Save Image" to save it!')
+      alert('📱 To save & share:\n\n' +
+        '1. LONG PRESS the image below\n' +
+        '2. Tap "Save Image"\n' +
+        '3. Go to Photos/Gallery\n' +
+        '4. Share to any app!\n\n' +
+        'Or use the Twitter button.')
     }
   }
 
