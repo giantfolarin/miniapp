@@ -157,7 +157,7 @@ export default function DashboardPage() {
       console.log('navigator.share available:', !!navigator.share)
       console.log('In iframe:', window !== window.top)
 
-      // Strategy 1: Try Web Share API if available
+      // Try Web Share API if available
       if (navigator.share) {
         try {
           console.log('Attempting Web Share API...')
@@ -178,43 +178,11 @@ export default function DashboardPage() {
             setShareModal(false)
             return
           }
-
-          // If files not supported, try without files
-          if (shareErr.message?.includes('files') || shareErr.name === 'NotAllowedError') {
-            try {
-              console.log('Trying share without files...')
-              await navigator.share({
-                title: 'Secret Message',
-                text: `Check out this secret message! ${window.location.origin}/u/${uniqueId}`
-              })
-              console.log('Share without files successful!')
-              setShareModal(false)
-              return
-            } catch (textShareErr) {
-              console.log('Share without files also failed:', textShareErr.message)
-            }
-          }
         }
       }
 
-      // Strategy 2: Try copying image to clipboard
-      if (navigator.clipboard && navigator.clipboard.write) {
-        try {
-          console.log('Attempting clipboard copy...')
-          await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob })
-          ])
-          console.log('Clipboard copy successful!')
-          setShareModal(false)
-          alert('✅ Image copied to clipboard!\n\nYou can now paste it in any messaging app (WhatsApp, Instagram, Telegram, etc.)')
-          return
-        } catch (clipErr) {
-          console.log('Clipboard copy failed:', clipErr.message)
-        }
-      }
-
-      // Strategy 3: Download the image
-      console.log('Using download fallback...')
+      // Fallback: Download the image
+      console.log('Downloading image...')
       const link = document.createElement('a')
       link.download = `secret-message-${Date.now()}.png`
       link.href = shareImageUrl
@@ -222,15 +190,17 @@ export default function DashboardPage() {
       link.click()
       document.body.removeChild(link)
 
+      // Close modal and show success message
+      setShareModal(false)
+
       setTimeout(() => {
-        setShareModal(false)
-        alert('📥 Image downloaded!\n\nCheck your downloads folder, then share from your photo gallery to any app.')
-      }, 300)
+        alert('📥 Image saved to your device!\n\n🔹 Go to your Photos/Gallery\n🔹 Find the downloaded image\n🔹 Tap Share and choose any app (WhatsApp, Instagram, Telegram, etc.)')
+      }, 500)
 
     } catch (err) {
       console.error('Fatal error in shareNow:', err)
       setShareModal(false)
-      alert('❌ Unable to share automatically.\n\nPlease take a screenshot of this image and share it manually.')
+      alert('❌ Unable to download.\n\nPlease take a screenshot of this image instead.')
     }
   }
 
