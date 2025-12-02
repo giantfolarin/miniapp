@@ -152,11 +152,8 @@ export default function DashboardPage() {
       const blob = await response.blob()
       const file = new File([blob], 'secretmessage.png', { type: 'image/png' })
 
-      console.log('Share attempt - navigator.share:', !!navigator.share)
-      console.log('In iframe:', window !== window.top)
-
-      // Strategy 1: Try Web Share API with file
-      if (navigator.share) {
+      // Try Web Share API - works on mobile browsers outside iframes
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
             files: [file],
@@ -166,146 +163,50 @@ export default function DashboardPage() {
           setShareModal(false)
           return
         } catch (err) {
-          console.log('Share with file failed:', err.name)
-
-          // User cancelled
           if (err.name === 'AbortError') {
             setShareModal(false)
             return
           }
-
-          // Try without file
-          try {
-            await navigator.share({
-              title: 'Secret Message',
-              text: 'Check out this secret message!',
-              url: window.location.href
-            })
-            setShareModal(false)
-            return
-          } catch (err2) {
-            console.log('Share without file failed:', err2.name)
-          }
         }
       }
 
-      // Strategy 2: If in iframe (Farcaster), open in new window where share will work
-      if (window !== window.top) {
-        console.log('In iframe - opening in new window')
-
-        // Create a temporary page that can share
-        const shareWindow = window.open('', '_blank')
-        if (shareWindow) {
-          shareWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Share Secret Message</title>
-              <style>
-                body {
-                  margin: 0;
-                  padding: 20px;
-                  font-family: system-ui, -apple-system, sans-serif;
-                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                  min-height: 100vh;
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  justify-content: center;
-                }
-                .container {
-                  background: white;
-                  border-radius: 20px;
-                  padding: 30px;
-                  max-width: 500px;
-                  text-align: center;
-                  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-                }
-                img {
-                  max-width: 100%;
-                  border-radius: 10px;
-                  margin: 20px 0;
-                }
-                button {
-                  background: #000;
-                  color: white;
-                  border: none;
-                  padding: 15px 40px;
-                  border-radius: 30px;
-                  font-size: 16px;
-                  font-weight: bold;
-                  cursor: pointer;
-                  margin: 10px;
-                }
-                button:hover {
-                  background: #333;
-                }
-                .instruction {
-                  color: #666;
-                  margin-top: 15px;
-                  font-size: 14px;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <h2>Share Your Secret Message</h2>
-                <img src="${shareImageUrl}" id="shareImage" />
-                <button onclick="shareImage()">📤 Share Now</button>
-                <p class="instruction">Tap the button to share to WhatsApp, Instagram, Telegram, or any app!</p>
-              </div>
-              <script>
-                async function shareImage() {
-                  try {
-                    const img = document.getElementById('shareImage');
-                    const response = await fetch(img.src);
-                    const blob = await response.blob();
-                    const file = new File([blob], 'secretmessage.png', { type: 'image/png' });
-
-                    if (navigator.share) {
-                      await navigator.share({
-                        files: [file],
-                        title: 'Secret Message',
-                        text: 'Check out this secret message!'
-                      });
-                    } else {
-                      alert('Sharing not available. Please take a screenshot and share manually.');
-                    }
-                  } catch (err) {
-                    if (err.name !== 'AbortError') {
-                      alert('Unable to share. Please take a screenshot and share manually.');
-                    }
-                  }
-                }
-              </script>
-            </body>
-            </html>
-          `)
-          shareWindow.document.close()
-          setShareModal(false)
-          return
-        }
-      }
-
-      // Strategy 3: Try download as last resort
-      const link = document.createElement('a')
-      link.download = `secret-message-${Date.now()}.png`
-      link.href = shareImageUrl
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+      // For mobile browsers (especially in iframes like Farcaster)
+      // Create object URL and trigger download which can then be shared from gallery
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'secret-message.png'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
 
       setShareModal(false)
+
+      // Show helpful instructions
       setTimeout(() => {
-        alert('📸 Tip: Take a screenshot of the image and share it to any app!')
-      }, 500)
+        const message = '✅ Image saved!\n\n' +
+          '📱 To share:\n' +
+          '1. Open your Photos/Gallery app\n' +
+          '2. Find the downloaded image\n' +
+          '3. Tap the Share button\n' +
+          '4. Choose WhatsApp, Instagram, Telegram, etc.\n\n' +
+          'Or go back and tap the Twitter button to share there!'
+        alert(message)
+      }, 300)
 
     } catch (err) {
       console.error('Share error:', err)
       setShareModal(false)
-      alert('Please take a screenshot of the image to share it.')
+
+      // Fallback: show instructions to screenshot
+      setTimeout(() => {
+        alert('📸 To share this message:\n\n' +
+          '1. Take a screenshot of the image above\n' +
+          '2. Open WhatsApp, Instagram, or any app\n' +
+          '3. Share your screenshot!\n\n' +
+          'Or use the Twitter button to share.')
+      }, 300)
     }
   }
 
