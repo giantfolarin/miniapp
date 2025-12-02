@@ -144,33 +144,56 @@ export default function DashboardPage() {
     }
   }
 
-  const shareNow = () => {
+  const shareNow = async () => {
     if (!shareImageUrl) return
 
-    // Simply open image in new tab - this always works
-    const newTab = window.open()
-    if (newTab) {
-      newTab.document.write(`
-        <html>
-          <head>
-            <title>Secret Message</title>
-            <style>
-              body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #000; }
-              img { max-width: 100%; height: auto; }
-            </style>
-          </head>
-          <body>
-            <img src="${shareImageUrl}" alt="Secret Message" />
-          </body>
-        </html>
-      `)
-      newTab.document.close()
-      setShareModal(false)
-      setTimeout(() => {
-        alert('📱 Long press the image to save it, then share to any app!')
-      }, 500)
-    } else {
-      alert('❌ Please allow popups and try again')
+    try {
+      // Convert data URL to blob
+      const response = await fetch(shareImageUrl)
+      const blob = await response.blob()
+
+      // Try to upload to Supabase Storage
+      const fileName = `share-${Date.now()}.png`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('shared-images')
+        .upload(fileName, blob, {
+          contentType: 'image/png',
+          cacheControl: '3600'
+        })
+
+      if (!uploadError) {
+        // Get public URL and open it
+        const { data: urlData } = supabase.storage
+          .from('shared-images')
+          .getPublicUrl(fileName)
+
+        const imageUrl = urlData.publicUrl
+        window.open(imageUrl, '_blank')
+        setShareModal(false)
+        setTimeout(() => {
+          alert('✅ Image opened! Long press to save and share.')
+        }, 500)
+        return
+      }
+
+      console.log('Storage upload failed, trying direct share:', uploadError)
+
+      // Fallback: Try Web Share API
+      const file = new File([blob], 'secret-message.png', { type: 'image/png' })
+      if (navigator.share) {
+        await navigator.share({
+          files: [file],
+          title: 'Secret Message'
+        })
+        setShareModal(false)
+        return
+      }
+
+      // Final fallback: Just keep modal open with image visible for screenshot
+      alert('📱 Please screenshot this image to share it!')
+    } catch (err) {
+      console.error('Share error:', err)
+      alert('📱 Please screenshot the image or use the Twitter button.')
     }
   }
 
