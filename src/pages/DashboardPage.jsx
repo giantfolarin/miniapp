@@ -153,40 +153,40 @@ export default function DashboardPage() {
       const blob = await response.blob()
       const file = new File([blob], 'secretmessage.png', { type: 'image/png' })
 
-      // Try Web Share API with files first
+      console.log('Share attempt - navigator.share available:', !!navigator.share)
+
+      // Try Web Share API
       if (navigator.share) {
         try {
-          // Check if files can be shared
-          const canShareFiles = navigator.canShare && navigator.canShare({ files: [file] })
+          // Try sharing with file first
+          console.log('Attempting to share with file...')
+          await navigator.share({
+            files: [file],
+            title: 'Secret Message',
+            text: 'Check out this secret message!'
+          })
+          console.log('Share with file completed successfully')
+          return
+        } catch (fileShareErr) {
+          console.log('File sharing failed, trying with text/URL only:', fileShareErr.message)
 
-          if (canShareFiles) {
-            console.log('Sharing with files...')
-            await navigator.share({
-              files: [file],
-              title: 'Secret Message',
-              text: 'Check out this secret message!'
-            })
-            console.log('Share completed successfully')
-            return
-          } else {
-            console.log('File sharing not supported, trying without files...')
-            // Try sharing without files (just text/URL)
+          // If file sharing fails, try without file
+          try {
             await navigator.share({
               title: 'Secret Message',
               text: 'Check out this secret message!',
               url: `${window.location.origin}/u/${uniqueId}`
             })
-            console.log('Share completed successfully (without file)')
+            console.log('Share without file completed successfully')
             return
+          } catch (textShareErr) {
+            if (textShareErr.name === 'AbortError') {
+              console.log('Share cancelled by user')
+              return
+            }
+            console.error('Text/URL share also failed:', textShareErr)
+            throw textShareErr
           }
-        } catch (shareErr) {
-          // User cancelled or share failed
-          if (shareErr.name === 'AbortError') {
-            console.log('Share cancelled by user')
-            return
-          }
-          console.error('Share API error:', shareErr)
-          throw shareErr
         }
       }
 
