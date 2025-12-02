@@ -151,58 +151,88 @@ export default function DashboardPage() {
       // Convert data URL to blob
       const response = await fetch(shareImageUrl)
       const blob = await response.blob()
-      const file = new File([blob], 'secretmessage.png', { type: 'image/png' })
 
-      console.log('Share attempt - navigator.share available:', !!navigator.share)
+      console.log('Share attempt started')
+      console.log('navigator.share available:', !!navigator.share)
+      console.log('In iframe:', window !== window.top)
+
+      // Check if we're in an iframe (like Farcaster)
+      const inIframe = window !== window.top
 
       // Try Web Share API
       if (navigator.share) {
         try {
-          // Try sharing with file first
-          console.log('Attempting to share with file...')
-          await navigator.share({
+          const file = new File([blob], 'secretmessage.png', { type: 'image/png' })
+
+          const shareData = {
             files: [file],
             title: 'Secret Message',
             text: 'Check out this secret message!'
-          })
-          console.log('Share with file completed successfully')
-          return
-        } catch (fileShareErr) {
-          console.log('File sharing failed, trying with text/URL only:', fileShareErr.message)
+          }
 
-          // If file sharing fails, try without file
-          try {
+          console.log('Checking if can share:', shareData)
+
+          // For iframes, try direct share without canShare check
+          if (inIframe) {
+            console.log('In iframe - attempting direct share')
+            await navigator.share(shareData)
+            console.log('Share successful!')
+            return
+          }
+
+          // For non-iframe contexts, check if file sharing is supported
+          if (navigator.canShare && navigator.canShare(shareData)) {
+            console.log('Can share with files - sharing...')
+            await navigator.share(shareData)
+            console.log('Share successful!')
+            return
+          } else {
+            console.log('Cannot share files, trying text/URL only')
             await navigator.share({
               title: 'Secret Message',
               text: 'Check out this secret message!',
               url: `${window.location.origin}/u/${uniqueId}`
             })
-            console.log('Share without file completed successfully')
+            console.log('Share successful (text only)!')
             return
-          } catch (textShareErr) {
-            if (textShareErr.name === 'AbortError') {
-              console.log('Share cancelled by user')
-              return
-            }
-            console.error('Text/URL share also failed:', textShareErr)
-            throw textShareErr
+          }
+        } catch (shareErr) {
+          console.error('Share error:', shareErr.name, shareErr.message)
+
+          // If user cancelled, just return
+          if (shareErr.name === 'AbortError') {
+            console.log('Share cancelled by user')
+            return
+          }
+
+          // If share failed, try clipboard as fallback
+          console.log('Share failed, trying clipboard fallback')
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ])
+            alert('Image copied to clipboard! You can now paste it in any app.')
+            return
+          } catch (clipErr) {
+            console.error('Clipboard fallback failed:', clipErr)
           }
         }
+      } else {
+        console.log('Web Share API not supported')
       }
 
-      // Fallback: download the image
-      console.log('Web Share API not available, downloading...')
-      const link = document.createElement('a')
-      link.download = `secret-message-${Date.now()}.png`
-      link.href = shareImageUrl
-      link.click()
-    } catch (err) {
-      console.error('Error in shareNow:', err)
       // Final fallback: download the image
+      console.log('Downloading image as final fallback')
       const link = document.createElement('a')
       link.download = `secret-message-${Date.now()}.png`
       link.href = shareImageUrl
+      document.body.appendChild(link)
       link.click()
+      document.body.removeChild(link)
+      alert('Image downloaded! You can share it from your device.')
+    } catch (err) {
+      console.error('Fatal error in shareNow:', err)
+      alert('Unable to share. Please try the Twitter button or take a screenshot.')
     }
   }
 
