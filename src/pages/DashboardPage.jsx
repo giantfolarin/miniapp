@@ -148,30 +148,84 @@ export default function DashboardPage() {
     if (!shareImageUrl) return
 
     try {
-      // Convert data URL to blob
-      const response = await fetch(shareImageUrl)
-      const blob = await response.blob()
+      // Open image in new window
+      const newWindow = window.open('', '_blank')
 
-      // Create blob URL
-      const blobUrl = URL.createObjectURL(blob)
+      if (!newWindow) {
+        // Popup blocked - show fallback
+        alert('⚠️ Popup blocked!\n\nPlease allow popups, then try again.\n\nOr use the Twitter button to share.')
+        return
+      }
 
-      // Create download link
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = 'secret-message.png'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(blobUrl)
+      // Write HTML to new window with the image
+      newWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Secret Message - Save Image</title>
+            <style>
+              body {
+                margin: 0;
+                padding: 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                font-family: system-ui, -apple-system, sans-serif;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+              }
+              .instructions {
+                background: white;
+                padding: 20px;
+                border-radius: 16px;
+                margin-bottom: 20px;
+                text-align: center;
+                max-width: 500px;
+              }
+              .instructions h2 {
+                margin: 0 0 10px 0;
+                color: #667eea;
+              }
+              .instructions p {
+                margin: 8px 0;
+                color: #333;
+                line-height: 1.5;
+              }
+              .instructions strong {
+                color: #667eea;
+              }
+              img {
+                max-width: 100%;
+                height: auto;
+                border-radius: 24px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                display: block;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="instructions">
+              <h2>📱 Save Image to Share</h2>
+              <p><strong>On Mobile:</strong> Long press the image below and select "Save Image" or "Download Image"</p>
+              <p><strong>On Desktop:</strong> Right click and select "Save image as..."</p>
+              <p style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; color: #666;">
+                After saving, share it to WhatsApp, Instagram, Telegram, or any app!
+              </p>
+            </div>
+            <img src="${shareImageUrl}" alt="Secret Message" />
+          </body>
+        </html>
+      `)
+      newWindow.document.close()
 
-      // Close modal and show success
+      // Close the modal
       setShareModal(false)
-      setTimeout(() => {
-        alert('✅ Image saved!\n\n📱 Go to your Photos/Gallery app and share to:\n• WhatsApp\n• Instagram\n• Telegram\n• Facebook\nOr any other app!')
-      }, 300)
     } catch (err) {
-      console.error('Download error:', err)
-      alert('Please try the Twitter button to share, or take a screenshot of the image.')
+      console.error('Error opening image:', err)
+      alert('Failed to open image. Please try the Twitter button to share.')
     }
   }
 
