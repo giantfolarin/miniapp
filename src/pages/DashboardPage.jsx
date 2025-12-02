@@ -151,88 +151,86 @@ export default function DashboardPage() {
       // Convert data URL to blob
       const response = await fetch(shareImageUrl)
       const blob = await response.blob()
+      const file = new File([blob], 'secretmessage.png', { type: 'image/png' })
 
       console.log('Share attempt started')
       console.log('navigator.share available:', !!navigator.share)
       console.log('In iframe:', window !== window.top)
 
-      // Check if we're in an iframe (like Farcaster)
-      const inIframe = window !== window.top
-
-      // Try Web Share API
+      // Strategy 1: Try Web Share API if available
       if (navigator.share) {
         try {
-          const file = new File([blob], 'secretmessage.png', { type: 'image/png' })
-
-          const shareData = {
+          console.log('Attempting Web Share API...')
+          await navigator.share({
             files: [file],
             title: 'Secret Message',
             text: 'Check out this secret message!'
-          }
-
-          console.log('Checking if can share:', shareData)
-
-          // For iframes, try direct share without canShare check
-          if (inIframe) {
-            console.log('In iframe - attempting direct share')
-            await navigator.share(shareData)
-            console.log('Share successful!')
-            return
-          }
-
-          // For non-iframe contexts, check if file sharing is supported
-          if (navigator.canShare && navigator.canShare(shareData)) {
-            console.log('Can share with files - sharing...')
-            await navigator.share(shareData)
-            console.log('Share successful!')
-            return
-          } else {
-            console.log('Cannot share files, trying text/URL only')
-            await navigator.share({
-              title: 'Secret Message',
-              text: 'Check out this secret message!',
-              url: `${window.location.origin}/u/${uniqueId}`
-            })
-            console.log('Share successful (text only)!')
-            return
-          }
+          })
+          console.log('Web Share successful!')
+          setShareModal(false)
+          return
         } catch (shareErr) {
-          console.error('Share error:', shareErr.name, shareErr.message)
+          console.log('Web Share failed:', shareErr.name, shareErr.message)
 
-          // If user cancelled, just return
+          // If user cancelled, close modal and return
           if (shareErr.name === 'AbortError') {
-            console.log('Share cancelled by user')
+            console.log('User cancelled share')
+            setShareModal(false)
             return
           }
 
-          // If share failed, try clipboard as fallback
-          console.log('Share failed, trying clipboard fallback')
-          try {
-            await navigator.clipboard.write([
-              new ClipboardItem({ 'image/png': blob })
-            ])
-            alert('Image copied to clipboard! You can now paste it in any app.')
-            return
-          } catch (clipErr) {
-            console.error('Clipboard fallback failed:', clipErr)
+          // If files not supported, try without files
+          if (shareErr.message?.includes('files') || shareErr.name === 'NotAllowedError') {
+            try {
+              console.log('Trying share without files...')
+              await navigator.share({
+                title: 'Secret Message',
+                text: `Check out this secret message! ${window.location.origin}/u/${uniqueId}`
+              })
+              console.log('Share without files successful!')
+              setShareModal(false)
+              return
+            } catch (textShareErr) {
+              console.log('Share without files also failed:', textShareErr.message)
+            }
           }
         }
-      } else {
-        console.log('Web Share API not supported')
       }
 
-      // Final fallback: download the image
-      console.log('Downloading image as final fallback')
+      // Strategy 2: Try copying image to clipboard
+      if (navigator.clipboard && navigator.clipboard.write) {
+        try {
+          console.log('Attempting clipboard copy...')
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ])
+          console.log('Clipboard copy successful!')
+          setShareModal(false)
+          alert('✅ Image copied to clipboard!\n\nYou can now paste it in any messaging app (WhatsApp, Instagram, Telegram, etc.)')
+          return
+        } catch (clipErr) {
+          console.log('Clipboard copy failed:', clipErr.message)
+        }
+      }
+
+      // Strategy 3: Download the image
+      console.log('Using download fallback...')
       const link = document.createElement('a')
       link.download = `secret-message-${Date.now()}.png`
       link.href = shareImageUrl
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      alert('Image downloaded! You can share it from your device.')
+
+      setTimeout(() => {
+        setShareModal(false)
+        alert('📥 Image downloaded!\n\nCheck your downloads folder, then share from your photo gallery to any app.')
+      }, 300)
+
     } catch (err) {
       console.error('Fatal error in shareNow:', err)
-      alert('Unable to share. Please try the Twitter button or take a screenshot.')
+      setShareModal(false)
+      alert('❌ Unable to share automatically.\n\nPlease take a screenshot of this image and share it manually.')
     }
   }
 
