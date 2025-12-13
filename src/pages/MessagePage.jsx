@@ -12,6 +12,20 @@ export default function MessagePage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
+  // Redirect to Base.app if opened outside miniapp context
+  useEffect(() => {
+    const isInMiniapp = window.self !== window.top ||
+                        window.location.href.includes('base.org') ||
+                        window.location.href.includes('warpcast.com') ||
+                        navigator.userAgent.includes('Farcaster')
+
+    if (!isInMiniapp) {
+      // Redirect to Base.org to open in miniapp
+      const baseUrl = `https://base.org/miniapp?url=${encodeURIComponent(window.location.href)}`
+      window.location.replace(baseUrl)
+    }
+  }, [])
+
   useEffect(() => {
     const fetchUser = async () => {
       const { data, error } = await supabase
