@@ -132,10 +132,11 @@ export default function DashboardPage() {
     }
 
     try {
+      // Generate image from card
       const canvas = await html2canvas(cardElement, {
         backgroundColor: '#7c3aed',
         scale: 2,
-        logging: true,
+        logging: false,
         useCORS: true,
         allowTaint: true,
       })
@@ -150,24 +151,58 @@ export default function DashboardPage() {
         return
       }
 
-      // Create download link
-      const url = URL.createObjectURL(blob)
+      // Upload to Supabase Storage
+      const fileName = `downloads/message-${message.id}-${Date.now()}.png`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('shared-images')
+        .upload(fileName, blob, {
+          contentType: 'image/png',
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        // Fallback to direct download
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `secret-message-${Date.now()}.png`
+        document.body.appendChild(a)
+        a.click()
+        setTimeout(() => {
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+        }, 100)
+        alert('✅ Downloaded! (Direct)')
+        return
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('shared-images')
+        .getPublicUrl(fileName)
+
+      // Download from Supabase URL
+      const imageUrl = urlData.publicUrl
       const a = document.createElement('a')
-      a.href = url
+      a.href = imageUrl
       a.download = `secret-message-${Date.now()}.png`
+      a.target = '_blank'
       document.body.appendChild(a)
       a.click()
+      document.body.removeChild(a)
 
-      // Cleanup
-      setTimeout(() => {
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      }, 100)
+      alert('✅ Message downloaded from cloud!')
 
-      alert('✅ Message downloaded!')
+      // Optional: Delete from storage after 1 minute to save space
+      setTimeout(async () => {
+        await supabase.storage.from('shared-images').remove([fileName])
+      }, 60000)
+
     } catch (err) {
       console.error('Error downloading message:', err)
-      alert(`❌ Failed to download: ${err.message}`)
+      alert(`❌ Download failed: ${err.message}`)
     }
   }
 
