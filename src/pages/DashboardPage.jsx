@@ -151,49 +151,16 @@ export default function DashboardPage() {
         return
       }
 
-      // Upload to Supabase Storage
-      const fileName = `downloads/message-${message.id}-${Date.now()}.png`
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('shared-images')
-        .upload(fileName, blob, {
-          contentType: 'image/png',
-          cacheControl: '3600',
-          upsert: true
-        })
+      // Create blob URL and open instantly (no upload delay!)
+      const blobUrl = URL.createObjectURL(blob)
+      window.open(blobUrl, '_blank')
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError)
-        // Fallback to direct download
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `secret-message-${Date.now()}.png`
-        document.body.appendChild(a)
-        a.click()
-        setTimeout(() => {
-          document.body.removeChild(a)
-          URL.revokeObjectURL(url)
-        }, 100)
-        alert('✅ Downloaded! (Direct)')
-        return
-      }
+      alert('✅ Image opened! Long-press to save to your device.')
 
-      // Get public URL and open in new tab
-      const { data: urlData } = supabase.storage
-        .from('shared-images')
-        .getPublicUrl(fileName)
-
-      const imageUrl = urlData.publicUrl
-
-      // Open image in new tab
-      window.open(imageUrl, '_blank')
-
-      alert('✅ Image opened in new tab! Long-press to save to your device.')
-
-      // Optional: Delete from storage after 5 minutes to save space
-      setTimeout(async () => {
-        await supabase.storage.from('shared-images').remove([fileName])
-      }, 300000)
+      // Cleanup after 30 seconds
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl)
+      }, 30000)
 
     } catch (err) {
       console.error('Error downloading message:', err)
@@ -232,41 +199,19 @@ export default function DashboardPage() {
       const response = await fetch(shareImageUrl)
       const blob = await response.blob()
 
-      // Upload to Supabase Storage
-      const fileName = `shares/message-${Date.now()}.png`
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('shared-images')
-        .upload(fileName, blob, {
-          contentType: 'image/png',
-          cacheControl: '3600',
-          upsert: true
-        })
-
-      if (uploadError) {
-        console.error('Upload error:', uploadError)
-        alert('❌ Upload failed. Please screenshot the image.')
-        return
-      }
-
-      // Get public URL and open in new tab
-      const { data: urlData } = supabase.storage
-        .from('shared-images')
-        .getPublicUrl(fileName)
-
-      const imageUrl = urlData.publicUrl
-
-      // Open image in new tab
-      window.open(imageUrl, '_blank')
+      // Create blob URL and open instantly (no upload delay!)
+      const blobUrl = URL.createObjectURL(blob)
+      window.open(blobUrl, '_blank')
       setShareModal(false)
 
       setTimeout(() => {
         alert('✅ Image opened! Long-press to save and share.')
       }, 500)
 
-      // Optional: Delete from storage after 5 minutes
-      setTimeout(async () => {
-        await supabase.storage.from('shared-images').remove([fileName])
-      }, 300000)
+      // Cleanup after 30 seconds
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl)
+      }, 30000)
 
     } catch (err) {
       console.error('Share error:', err)
