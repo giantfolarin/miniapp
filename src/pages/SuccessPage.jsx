@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
+// Base.org URL for tracking - all shared links will use this
+const BASE_APP_URL = 'https://secret-message-miniapp.vercel.app'
+
 export default function SuccessPage() {
   const params = useParams()
   const navigate = useNavigate()
@@ -10,7 +13,7 @@ export default function SuccessPage() {
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const shareUrl = `${window.location.origin}/u/${uniqueId}`
+  const shareUrl = `${BASE_APP_URL}/u/${uniqueId}`
 
   useEffect(() => {
     const fetchUser = async () => {

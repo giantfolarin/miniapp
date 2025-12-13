@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import html2canvas from 'html2canvas'
 
+// Base.org URL for tracking - all shared links will use this
+const BASE_APP_URL = 'https://secret-message-miniapp.vercel.app' // Your users will access via base.org which tracks activity
+
 export default function DashboardPage() {
   const params = useParams()
   const navigate = useNavigate()
@@ -121,6 +124,37 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDownload = async (message) => {
+    const cardElement = document.getElementById(`card-${message.id}`)
+    if (!cardElement) return
+
+    try {
+      const canvas = await html2canvas(cardElement, {
+        backgroundColor: null,
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+      })
+
+      // Convert canvas to blob and download
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `secret-message-${message.id}.png`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        alert('✅ Message downloaded!')
+      }, 'image/png', 1.0)
+    } catch (err) {
+      console.error('Error downloading message:', err)
+      alert('Failed to download message.')
+    }
+  }
+
   const handleShare = async (message) => {
     const cardElement = document.getElementById(`card-${message.id}`)
     if (!cardElement) return
@@ -151,58 +185,42 @@ export default function DashboardPage() {
       // Convert data URL to blob
       const response = await fetch(shareImageUrl)
       const blob = await response.blob()
-
-      // Try to upload to Supabase Storage
-      const fileName = `share-${Date.now()}.png`
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('shared-images')
-        .upload(fileName, blob, {
-          contentType: 'image/png',
-          cacheControl: '3600'
-        })
-
-      if (!uploadError) {
-        // Get public URL and open it
-        const { data: urlData } = supabase.storage
-          .from('shared-images')
-          .getPublicUrl(fileName)
-
-        const imageUrl = urlData.publicUrl
-        window.open(imageUrl, '_blank')
-        setShareModal(false)
-        setTimeout(() => {
-          alert('✅ Image opened! Long press to save and share.')
-        }, 500)
-        return
-      }
-
-      // Show the actual error
-      alert(`⚠️ Storage upload failed: ${uploadError.message}\n\nMake sure:\n1. Bucket "shared-images" exists\n2. Bucket is PUBLIC\n3. RLS policy allows INSERT for anonymous users`)
-      console.log('Full upload error:', uploadError)
-
-      // Fallback: Try Web Share API
       const file = new File([blob], 'secret-message.png', { type: 'image/png' })
+
+      // Try Web Share API first (stays within Base app)
       if (navigator.share) {
-        await navigator.share({
-          files: [file],
-          title: 'Secret Message'
-        })
-        setShareModal(false)
-        return
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'Secret Message',
+            text: 'Check out this secret message!'
+          })
+          setShareModal(false)
+          return
+        } catch (shareErr) {
+          // User cancelled or share not supported
+          console.log('Share cancelled or not supported:', shareErr)
+        }
       }
 
-      // Final fallback: Just keep modal open with image visible for screenshot
-      alert('📱 Please screenshot this image to share it!')
+      // Fallback: Download the image
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'secret-message.png'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      setShareModal(false)
+      setTimeout(() => {
+        alert('✅ Image downloaded! Share it from your gallery.')
+      }, 300)
     } catch (err) {
       console.error('Share error:', err)
-      alert('📱 Please screenshot the image or use the Twitter button.')
+      alert('❌ Failed to share. Please screenshot the image.')
     }
-  }
-
-  const shareToTwitter = () => {
-    const text = encodeURIComponent('Check out this secret message! 💭')
-    const url = encodeURIComponent(`${window.location.origin}/u/${uniqueId}`)
-    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank')
   }
 
   const formatDate = (dateString) => {
@@ -255,7 +273,7 @@ export default function DashboardPage() {
             </div>
             <button
               onClick={async () => {
-                const url = `${window.location.origin}/u/${uniqueId}`
+                const url = `${BASE_APP_URL}/u/${uniqueId}`
                 const input = document.createElement('input')
                 input.value = url
                 input.style.position = 'absolute'
@@ -330,6 +348,9 @@ export default function DashboardPage() {
                     <div className="flex gap-1">
                       <button onClick={() => handleCopy(msg.message)} className="text-purple-300 hover:text-purple-200 p-1" title="Copy">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                      </button>
+                      <button onClick={() => handleDownload(msg)} className="text-purple-300 hover:text-purple-200 p-1" title="Download">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                       </button>
                       <button onClick={() => handleShare(msg)} className="text-purple-300 hover:text-purple-200 p-1" title="Share">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
@@ -407,23 +428,12 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={shareNow}
-                className="bg-black text-white font-bold py-4 px-6 rounded-full text-base hover:bg-gray-800 transition-colors"
-              >
-                Share Now
-              </button>
-              <button
-                onClick={shareToTwitter}
-                className="bg-black text-white font-bold py-4 px-6 rounded-full text-base hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                </svg>
-                Twitter
-              </button>
-            </div>
+            <button
+              onClick={shareNow}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-6 rounded-full text-base hover:from-purple-700 hover:to-pink-700 transition-colors"
+            >
+              Share Now
+            </button>
 
             <button
               onClick={() => setShareModal(false)}
