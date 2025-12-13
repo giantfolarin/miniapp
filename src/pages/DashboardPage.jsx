@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import html2canvas from 'html2canvas'
 
-// Base.org URL for tracking - all shared links will use this
-const BASE_APP_URL = 'https://secret-message-miniapp.vercel.app' // Your users will access via base.org which tracks activity
+// App URL for shared links
+const BASE_APP_URL = 'https://secret-message-miniapp.vercel.app'
 
 export default function DashboardPage() {
   const params = useParams()
@@ -126,32 +126,48 @@ export default function DashboardPage() {
 
   const handleDownload = async (message) => {
     const cardElement = document.getElementById(`card-${message.id}`)
-    if (!cardElement) return
+    if (!cardElement) {
+      alert('❌ Card element not found')
+      return
+    }
 
     try {
       const canvas = await html2canvas(cardElement, {
-        backgroundColor: null,
+        backgroundColor: '#7c3aed',
         scale: 2,
-        logging: false,
+        logging: true,
         useCORS: true,
         allowTaint: true,
       })
 
-      // Convert canvas to blob and download
-      canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `secret-message-${message.id}.png`
-        document.body.appendChild(a)
-        a.click()
+      // Convert to blob
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob(resolve, 'image/png', 1.0)
+      })
+
+      if (!blob) {
+        alert('❌ Failed to create image')
+        return
+      }
+
+      // Create download link
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `secret-message-${Date.now()}.png`
+      document.body.appendChild(a)
+      a.click()
+
+      // Cleanup
+      setTimeout(() => {
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-        alert('✅ Message downloaded!')
-      }, 'image/png', 1.0)
+      }, 100)
+
+      alert('✅ Message downloaded!')
     } catch (err) {
       console.error('Error downloading message:', err)
-      alert('Failed to download message.')
+      alert(`❌ Failed to download: ${err.message}`)
     }
   }
 
