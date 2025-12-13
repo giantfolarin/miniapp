@@ -178,27 +178,22 @@ export default function DashboardPage() {
         return
       }
 
-      // Get public URL
+      // Get public URL and open in new tab
       const { data: urlData } = supabase.storage
         .from('shared-images')
         .getPublicUrl(fileName)
 
-      // Download from Supabase URL
       const imageUrl = urlData.publicUrl
-      const a = document.createElement('a')
-      a.href = imageUrl
-      a.download = `secret-message-${Date.now()}.png`
-      a.target = '_blank'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
 
-      alert('✅ Message downloaded from cloud!')
+      // Open image in new tab
+      window.open(imageUrl, '_blank')
 
-      // Optional: Delete from storage after 1 minute to save space
+      alert('✅ Image opened in new tab! Long-press to save to your device.')
+
+      // Optional: Delete from storage after 5 minutes to save space
       setTimeout(async () => {
         await supabase.storage.from('shared-images').remove([fileName])
-      }, 60000)
+      }, 300000)
 
     } catch (err) {
       console.error('Error downloading message:', err)
@@ -236,38 +231,43 @@ export default function DashboardPage() {
       // Convert data URL to blob
       const response = await fetch(shareImageUrl)
       const blob = await response.blob()
-      const file = new File([blob], 'secret-message.png', { type: 'image/png' })
 
-      // Try Web Share API first (stays within Base app)
-      if (navigator.share) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: 'Secret Message',
-            text: 'Check out this secret message!'
-          })
-          setShareModal(false)
-          return
-        } catch (shareErr) {
-          // User cancelled or share not supported
-          console.log('Share cancelled or not supported:', shareErr)
-        }
+      // Upload to Supabase Storage
+      const fileName = `shares/message-${Date.now()}.png`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('shared-images')
+        .upload(fileName, blob, {
+          contentType: 'image/png',
+          cacheControl: '3600',
+          upsert: true
+        })
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        alert('❌ Upload failed. Please screenshot the image.')
+        return
       }
 
-      // Fallback: Download the image
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'secret-message.png'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      // Get public URL and open in new tab
+      const { data: urlData } = supabase.storage
+        .from('shared-images')
+        .getPublicUrl(fileName)
 
+      const imageUrl = urlData.publicUrl
+
+      // Open image in new tab
+      window.open(imageUrl, '_blank')
       setShareModal(false)
+
       setTimeout(() => {
-        alert('✅ Image downloaded! Share it from your gallery.')
-      }, 300)
+        alert('✅ Image opened! Long-press to save and share.')
+      }, 500)
+
+      // Optional: Delete from storage after 5 minutes
+      setTimeout(async () => {
+        await supabase.storage.from('shared-images').remove([fileName])
+      }, 300000)
+
     } catch (err) {
       console.error('Share error:', err)
       alert('❌ Failed to share. Please screenshot the image.')
