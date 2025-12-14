@@ -151,16 +151,77 @@ export default function DashboardPage() {
         return
       }
 
-      // Create blob URL and open instantly (no upload delay!)
-      const blobUrl = URL.createObjectURL(blob)
-      window.open(blobUrl, '_blank')
+      // Convert blob to data URL for better mobile compatibility
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const dataUrl = reader.result
 
-      alert('✅ Image opened! Long-press to save to your device.')
-
-      // Cleanup after 30 seconds
-      setTimeout(() => {
-        URL.revokeObjectURL(blobUrl)
-      }, 30000)
+        // Open new window with HTML page containing the image
+        const newWindow = window.open('', '_blank')
+        if (newWindow) {
+          newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Secret Message - Save Image</title>
+                <style>
+                  body {
+                    margin: 0;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    font-family: system-ui, -apple-system, sans-serif;
+                  }
+                  .instructions {
+                    background: white;
+                    padding: 20px;
+                    border-radius: 16px;
+                    margin-bottom: 20px;
+                    text-align: center;
+                    max-width: 500px;
+                  }
+                  .instructions h2 {
+                    margin: 0 0 10px 0;
+                    color: #667eea;
+                    font-size: 20px;
+                  }
+                  .instructions p {
+                    margin: 8px 0;
+                    color: #333;
+                    line-height: 1.5;
+                    font-size: 14px;
+                  }
+                  img {
+                    max-width: 100%;
+                    height: auto;
+                    border-radius: 16px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="instructions">
+                  <h2>📱 Save to Your Phone</h2>
+                  <p><strong>On Mobile:</strong> Long press the image below → Tap "Save Image" or "Download Image"</p>
+                  <p><strong>On Desktop:</strong> Right-click → "Save image as..."</p>
+                </div>
+                <img src="${dataUrl}" alt="Secret Message" />
+              </body>
+            </html>
+          `)
+          newWindow.document.close()
+          alert('✅ Image opened! Long-press to save.')
+        } else {
+          alert('❌ Please allow popups and try again')
+        }
+      }
+      reader.readAsDataURL(blob)
 
     } catch (err) {
       console.error('Error downloading message:', err)
@@ -191,28 +252,78 @@ export default function DashboardPage() {
     }
   }
 
-  const shareNow = async () => {
+  const shareNow = () => {
     if (!shareImageUrl) return
 
     try {
-      // Convert data URL to blob
-      const response = await fetch(shareImageUrl)
-      const blob = await response.blob()
-
-      // Create blob URL and open instantly (no upload delay!)
-      const blobUrl = URL.createObjectURL(blob)
-      window.open(blobUrl, '_blank')
-      setShareModal(false)
-
-      setTimeout(() => {
-        alert('✅ Image opened! Long-press to save and share.')
-      }, 500)
-
-      // Cleanup after 30 seconds
-      setTimeout(() => {
-        URL.revokeObjectURL(blobUrl)
-      }, 30000)
-
+      // Open new window with HTML page containing the image
+      const newWindow = window.open('', '_blank')
+      if (newWindow) {
+        newWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Secret Message - Save & Share</title>
+              <style>
+                body {
+                  margin: 0;
+                  padding: 20px;
+                  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                  min-height: 100vh;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                  font-family: system-ui, -apple-system, sans-serif;
+                }
+                .instructions {
+                  background: white;
+                  padding: 20px;
+                  border-radius: 16px;
+                  margin-bottom: 20px;
+                  text-align: center;
+                  max-width: 500px;
+                }
+                .instructions h2 {
+                  margin: 0 0 10px 0;
+                  color: #667eea;
+                  font-size: 20px;
+                }
+                .instructions p {
+                  margin: 8px 0;
+                  color: #333;
+                  line-height: 1.5;
+                  font-size: 14px;
+                }
+                img {
+                  max-width: 100%;
+                  height: auto;
+                  border-radius: 16px;
+                  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                }
+              </style>
+            </head>
+            <body>
+              <div class="instructions">
+                <h2>📱 Save & Share</h2>
+                <p><strong>Step 1:</strong> Long press the image below → Tap "Save Image"</p>
+                <p><strong>Step 2:</strong> Open your Photos/Gallery app</p>
+                <p><strong>Step 3:</strong> Share to WhatsApp, Instagram, Telegram, or any app!</p>
+              </div>
+              <img src="${shareImageUrl}" alt="Secret Message" />
+            </body>
+          </html>
+        `)
+        newWindow.document.close()
+        setShareModal(false)
+        setTimeout(() => {
+          alert('✅ Image opened! Long-press to save.')
+        }, 500)
+      } else {
+        alert('❌ Please allow popups and try again')
+      }
     } catch (err) {
       console.error('Share error:', err)
       alert('❌ Failed to share. Please screenshot the image.')
