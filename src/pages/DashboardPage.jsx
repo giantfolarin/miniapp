@@ -141,25 +141,13 @@ export default function DashboardPage() {
         allowTaint: true,
       })
 
-      // Convert to blob
-      const blob = await new Promise((resolve) => {
-        canvas.toBlob(resolve, 'image/png', 1.0)
-      })
+      // Convert canvas directly to data URL (simpler and faster)
+      const dataUrl = canvas.toDataURL('image/png', 1.0)
 
-      if (!blob) {
-        alert('❌ Failed to create image')
-        return
-      }
-
-      // Convert blob to data URL for better mobile compatibility
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const dataUrl = reader.result
-
-        // Open new window with HTML page containing the image
-        const newWindow = window.open('', '_blank')
-        if (newWindow) {
-          newWindow.document.write(`
+      // Open new window with HTML page containing the image
+      const newWindow = window.open('', '_blank')
+      if (newWindow) {
+        newWindow.document.write(`
             <!DOCTYPE html>
             <html>
               <head>
@@ -217,11 +205,9 @@ export default function DashboardPage() {
           `)
           newWindow.document.close()
           alert('✅ Image opened! Long-press to save.')
-        } else {
-          alert('❌ Please allow popups and try again')
-        }
+      } else {
+        alert('❌ Please allow popups and try again')
       }
-      reader.readAsDataURL(blob)
 
     } catch (err) {
       console.error('Error downloading message:', err)
